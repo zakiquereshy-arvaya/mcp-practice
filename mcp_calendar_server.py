@@ -3,7 +3,7 @@ import httpx
 from fastmcp import FastMCP
 from dotenv import load_dotenv
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict 
 
 load_dotenv()
 
@@ -122,6 +122,34 @@ def calculate_free_slots(busy_times: list, date: str):
         })
     
     return free_slots
+
+@mcp.tool()
+def get_users_with_name_and_email() -> List[Dict[str, str]]:
+    """Get all users with only name and email"""
+    token = get_access_token()
+    
+    url = f"{GRAPH_BASE}/users"
+    params = {
+        "$select": "displayName,mail,userPrincipalName"
+    }
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    resp = httpx.get(url, params=params, headers=headers)
+    resp.raise_for_status()
+    
+    data = resp.json()
+    
+    users = []
+    for user in data.get('value', []):
+        email = user.get('mail') or user.get('userPrincipalName')
+        name = user.get('displayName', 'Unknown')
+        
+        users.append({
+            'name': name,
+            'email': email
+        })
+    
+    return users
 
 
 # MCP Tool
