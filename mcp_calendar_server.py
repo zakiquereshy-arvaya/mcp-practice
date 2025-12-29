@@ -63,9 +63,31 @@ def get_calendar_view(user_email: str, start_datetime: str, end_datetime: str):
         "Authorization": f"Bearer {token}",
         "Prefer": 'outlook.timezone="Eastern Standard Time"'
     }
-    resp = httpx.get(url, params=params, headers=headers)
-    resp.raise_for_status()
-    return resp.json()
+    
+    # Handle pagination - fetch all pages
+    all_events = []
+    next_link = None
+    
+    while True:
+        if next_link:
+            # Use the nextLink URL directly (it already contains all params)
+            resp = httpx.get(next_link, headers=headers)
+        else:
+            resp = httpx.get(url, params=params, headers=headers)
+        
+        resp.raise_for_status()
+        data = resp.json()
+        
+        # Add events from this page
+        all_events.extend(data.get('value', []))
+        
+        # Check if there are more pages
+        next_link = data.get('@odata.nextLink')
+        if not next_link:
+            break
+    
+    # Return in the same format as before, but with all events
+    return {'value': all_events}
 
 
 def calculate_duration(start: str, end: str):
