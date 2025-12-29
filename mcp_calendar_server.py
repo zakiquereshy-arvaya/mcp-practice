@@ -2,7 +2,7 @@ import os
 import httpx
 from fastmcp import FastMCP
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List, Dict 
 
 load_dotenv()
@@ -57,7 +57,7 @@ def get_calendar_view(user_email: str, start_datetime: str, end_datetime: str):
     params = {
         "startDateTime": start_datetime,
         "endDateTime": end_datetime,
-        "$select": "subject,start,end,isAllDay"
+        "$select": "subject,start,end,isAllDay,showAs"
     }
     headers = {
         "Authorization": f"Bearer {token}",
@@ -188,23 +188,26 @@ def check_availability(user_email: str, date: Optional[str] = None) -> dict:
         date = datetime.now().strftime("%Y-%m-%d")
     
     date_obj = datetime.strptime(date, "%Y-%m-%d")
-    start_datetime = f"{date}T09:00:00"
-    end_datetime = f"{date}T17:00:00"
+    # Query the full day using UTC format (required by Microsoft Graph API)
+    # EST is UTC-5, so start of day EST = 05:00 UTC, end of day EST = 05:00 UTC next day
+    # But to be safe, let's query a bit wider range to catch all events
+    start_datetime = f"{date}T04:00:00Z"  # Slightly before start of day EST in UTC
+    next_day = (date_obj + timedelta(days=1)).strftime("%Y-%m-%d")
+    end_datetime = f"{next_day}T05:00:00Z"  # Start of next day EST in UTC
     
     events = get_calendar_view(user_email, start_datetime, end_datetime)
     
     busy_times = []
     for event in events.get('value', []):
+        # calendarView already filters by date range, so include all returned events
         event_start = event['start']['dateTime']
         event_end = event['end']['dateTime']
-        event_date = event_start.split('T')[0]
         
-        if event_date == date:
-            busy_times.append({
-                'subject': event.get('subject'),
-                'start': event_start,
-                'end': event_end
-            })
+        busy_times.append({
+            'subject': event.get('subject'),
+            'start': event_start,
+            'end': event_end
+        })
     
     free_slots = calculate_free_slots(busy_times, date)
     
