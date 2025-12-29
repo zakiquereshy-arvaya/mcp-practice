@@ -124,7 +124,7 @@ def calculate_free_slots(busy_times: list, date: str):
     return free_slots
 
 @mcp.tool()
-def get_users_with_name_and_email() -> Dict[str, str]:
+def get_users_with_name_and_email() -> List[ Dict[str, str]]:
     # MCP Tool
     token = get_access_token()
     
