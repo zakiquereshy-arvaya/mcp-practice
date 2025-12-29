@@ -125,6 +125,7 @@ def calculate_free_slots(busy_times: list, date: str):
 
 @mcp.tool()
 def get_users_with_name_and_email() -> Dict[str, str]:
+    # MCP Tool
     token = get_access_token()
     
     url = f"{GRAPH_BASE}/users"
@@ -138,17 +139,17 @@ def get_users_with_name_and_email() -> Dict[str, str]:
     
     data = resp.json()
     
+    users = []
     for user in data.get('value', []):
         email = user.get('mail') or user.get('userPrincipalName')
         name = user.get('displayName', 'Unknown')
         
-      
-    return  {
-        'name': name,
-        'email': email
-    }
-
-# MCP Tool
+        users.append({
+            'name': name,
+            'email': email
+        })
+    
+    return users
 @mcp.tool()
 def check_availability(user_email: str, date: Optional[str] = None) -> dict:
     """
