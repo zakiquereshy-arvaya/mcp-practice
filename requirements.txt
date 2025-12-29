@@ -48,6 +48,8 @@ pathable==0.4.4
 pathvalidate==3.3.1
 platformdirs==4.5.1
 prometheus_client==0.23.1
+psycopg==3.3.2
+psycopg-binary==3.3.2
 py-key-value-aio==0.3.0
 py-key-value-shared==0.3.0
 pycparser==2.23
