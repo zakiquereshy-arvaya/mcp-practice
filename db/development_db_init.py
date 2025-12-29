@@ -2,11 +2,15 @@
 import psycopg
 from dotenv import load_dotenv
 import os
+import sys
+from pathlib import Path
 
 load_dotenv()
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 from api.graph.get_users import get_users_with_name_and_email
-
-
 
 db_url = os.getenv("DEVELOPMENT_DB_URL")
 
@@ -39,4 +43,4 @@ def upsert_users(users):
 
 users_ds = get_users_with_name_and_email()
 
-print(users_ds)
+upsert_users(users_ds)
