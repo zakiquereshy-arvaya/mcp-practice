@@ -11,6 +11,7 @@ load_dotenv()
 TENANT_ID = os.getenv('TENANT_ID')
 CLIENT_ID = os.getenv('CLIENT_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
+BOOKING_AGENT_EMAIL_ADDRESS=os.getenv('BOOKING_AGENT_EMAIL')
 SCOPE = 'https://graph.microsoft.com/.default'
 
 TOKEN_URL = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
@@ -124,8 +125,7 @@ def calculate_free_slots(busy_times: list, date: str):
     return free_slots
 
 @mcp.tool()
-def get_users_with_name_and_email() -> List[Dict[str, str]]:
-    """Get all users with only name and email"""
+def get_users_with_name_and_email() -> Dict[str, str]:
     token = get_access_token()
     
     url = f"{GRAPH_BASE}/users"
@@ -139,18 +139,15 @@ def get_users_with_name_and_email() -> List[Dict[str, str]]:
     
     data = resp.json()
     
-    users = []
     for user in data.get('value', []):
         email = user.get('mail') or user.get('userPrincipalName')
         name = user.get('displayName', 'Unknown')
         
-        users.append({
-            'name': name,
-            'email': email
-        })
-    
-    return users
-
+      
+    return  {
+        'name': name,
+        'email': email
+    }
 
 # MCP Tool
 @mcp.tool()
@@ -202,7 +199,8 @@ def check_availability(user_email: str, date: Optional[str] = None) -> dict:
 
 @mcp.tool()
 def book_meeting(
-    user_email: str,
+    host_email: str,
+    sender_email: str,
     subject: str,
     start_datetime: str,
     end_datetime: str,
@@ -236,7 +234,7 @@ def book_meeting(
     date_formatted = start_dt.strftime('%B %d, %Y')
     
     token = get_access_token()
-    user_id = get_user_id_by_email(user_email)
+    user_id = get_user_id_by_email(host_email)
     url = f"{GRAPH_BASE}/users/{user_id}/events"
     
     event_data = {
@@ -258,16 +256,16 @@ def book_meeting(
             "contentType": "HTML",
             "content": body
         }
-    
+
+    attendee_list =[{"emailAddress":{"address":sender_email}, "type": "required"}] 
+
     if attendees:
-        event_data["attendees"] = [
-            {
-                "emailAddress": {"address": email},
-                "type": "required"
-            }
-            for email in attendees
-        ]
-    
+        for email in attendees:
+            if email != sender_email:  # Avoid duplicates
+                attendee_list.append({
+                    "emailAddress": {"address": email},
+                    "type": "required"
+                })
     resp = httpx.post(
         url,
         json=event_data,
