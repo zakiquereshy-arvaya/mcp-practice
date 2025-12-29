@@ -11,7 +11,6 @@ load_dotenv()
 TENANT_ID = os.getenv('TENANT_ID')
 CLIENT_ID = os.getenv('CLIENT_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
-BOOKING_AGENT_EMAIL_ADDRESS=os.getenv('BOOKING_AGENT_EMAIL')
 SCOPE = 'https://graph.microsoft.com/.default'
 
 TOKEN_URL = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
@@ -199,8 +198,7 @@ def check_availability(user_email: str, date: Optional[str] = None) -> dict:
 
 @mcp.tool()
 def book_meeting(
-    host_email: str,
-    sender_email: str,
+    user_email: str,
     subject: str,
     start_datetime: str,
     end_datetime: str,
@@ -234,7 +232,7 @@ def book_meeting(
     date_formatted = start_dt.strftime('%B %d, %Y')
     
     token = get_access_token()
-    user_id = get_user_id_by_email(host_email)
+    user_id = get_user_id_by_email(user_email)
     url = f"{GRAPH_BASE}/users/{user_id}/events"
     
     event_data = {
@@ -256,16 +254,16 @@ def book_meeting(
             "contentType": "HTML",
             "content": body
         }
-
-    attendee_list =[{"emailAddress":{"address":sender_email}, "type": "required"}] 
-
+    
     if attendees:
-        for email in attendees:
-            if email != sender_email:  # Avoid duplicates
-                attendee_list.append({
-                    "emailAddress": {"address": email},
-                    "type": "required"
-                })
+        event_data["attendees"] = [
+            {
+                "emailAddress": {"address": email},
+                "type": "required"
+            }
+            for email in attendees
+        ]
+    
     resp = httpx.post(
         url,
         json=event_data,
