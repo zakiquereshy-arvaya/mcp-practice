@@ -342,6 +342,25 @@ def book_meeting(
     if body:
         meeting_body += f"<br>{body}"
     
+    # Build attendees list - always include sender, and any additional attendees
+    attendees_list = []
+    
+    # Always add sender as an attendee so it shows up on their calendar
+    attendees_list.append({
+        "emailAddress": {"address": sender_email},
+        "type": "required"
+    })
+    
+    # Add any additional attendees (avoid duplicates)
+    if attendees:
+        for email in attendees:
+            # Don't add sender twice if they're already in the list
+            if email.lower() != sender_email.lower():
+                attendees_list.append({
+                    "emailAddress": {"address": email},
+                    "type": "required"
+                })
+    
     event_data = {
         "subject": subject,
         "start": {
@@ -357,17 +376,9 @@ def book_meeting(
         "body": {
             "contentType": "HTML",
             "content": meeting_body
-        }
+        },
+        "attendees": attendees_list
     }
-    
-    if attendees:
-        event_data["attendees"] = [
-            {
-                "emailAddress": {"address": email},
-                "type": "required"
-            }
-            for email in attendees
-        ]
     
     resp = httpx.post(
         url,
