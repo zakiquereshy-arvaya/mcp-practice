@@ -195,7 +195,7 @@ def get_users_with_name_and_email() -> List[ Dict[str, str]]:
     
     return sanitize_unicode(users)
 @mcp.tool()
-def check_availability(user_email: str, date: Optional[str] = None) -> dict:
+def check_availability(user_email: str, date: str = "") -> dict:
     """
     Check calendar availability for a user on a specific date.
     
@@ -253,8 +253,8 @@ def book_meeting(
     start_datetime: str,
     end_datetime: str,
     sender: str,
-    attendees: Optional[list] = None,
-    body: Optional[str] = None
+    attendees: List[str] = None,
+    body: str = "" 
 ) -> dict:
     """
     Book a meeting on a user's calendar.
