@@ -3,7 +3,7 @@ import httpx
 from fastmcp import FastMCP
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict 
+from typing import List, Dict 
 
 load_dotenv()
 
@@ -170,9 +170,10 @@ def calculate_free_slots(busy_times: list, date: str):
 @mcp.tool()
 def get_users_with_name_and_email() -> List[Dict[str, str]]:
     """
-    Get a list of users with their user display names and email addresses
+    Get a list of all users with their display names and email addresses.
+    
     Returns:
-        List of dictionaries containing 'name' and 'email' keys for each user 
+        List of dictionaries containing 'name' and 'email' keys for each user
     """
     token = get_access_token()
     
@@ -210,7 +211,7 @@ def check_availability(user_email: str, date: str = "") -> dict:
     Returns:
         Dictionary containing availability information including busy times and free slots
     """
-    if date is None:
+    if not date or date == "":
         date = datetime.now().strftime("%Y-%m-%d")
     
     date_obj = datetime.strptime(date, "%Y-%m-%d")
