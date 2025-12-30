@@ -168,8 +168,12 @@ def calculate_free_slots(busy_times: list, date: str):
     return free_slots
 
 @mcp.tool()
-def get_users_with_name_and_email() -> List[ Dict[str, str]]:
-    # MCP Tool
+def get_users_with_name_and_email() -> List[Dict[str, str]]:
+    """
+    Get a list of users with their user display names and email addresses
+    Returns:
+        List of dictionaries containing 'name' and 'email' keys for each user 
+    """
     token = get_access_token()
     
     url = f"{GRAPH_BASE}/users"
