@@ -19,6 +19,28 @@ GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 mcp = FastMCP("Calendar Availability Server")
 
 
+def sanitize_unicode(value):
+    """
+    Sanitize Unicode characters > 255 from return values.
+    Recursively processes strings, dicts, lists, and other types.
+    Characters > 255 are replaced with '?' to ensure MCP compatibility.
+    """
+    if isinstance(value, str):
+        # Filter to only allow characters with ordinal value <= 255
+        # Replace characters > 255 with '?'
+        sanitized = ''.join(char if ord(char) <= 255 else '?' for char in value)
+        return sanitized
+    elif isinstance(value, dict):
+        return {sanitize_unicode(k): sanitize_unicode(v) for k, v in value.items()}
+    elif isinstance(value, list):
+        return [sanitize_unicode(item) for item in value]
+    elif isinstance(value, tuple):
+        return tuple(sanitize_unicode(item) for item in value)
+    else:
+        # For numbers, None, bool, etc., return as-is
+        return value
+
+
 # Helper functions
 def get_access_token() -> str:
     data = {
@@ -171,7 +193,7 @@ def get_users_with_name_and_email() -> List[ Dict[str, str]]:
             'email': email
         })
     
-    return users
+    return sanitize_unicode(users)
 @mcp.tool()
 def check_availability(user_email: str, date: Optional[str] = None) -> dict:
     """
@@ -211,7 +233,7 @@ def check_availability(user_email: str, date: Optional[str] = None) -> dict:
     
     free_slots = calculate_free_slots(busy_times, date)
     
-    return {
+    result = {
         'user_email': user_email,
         'date': date,
         'day_of_week': date_obj.strftime('%A'),
@@ -220,6 +242,8 @@ def check_availability(user_email: str, date: Optional[str] = None) -> dict:
         'free_slots': free_slots,
         'is_completely_free': len(busy_times) == 0
     }
+    
+    return sanitize_unicode(result)
 
 
 @mcp.tool()
@@ -228,6 +252,7 @@ def book_meeting(
     subject: str,
     start_datetime: str,
     end_datetime: str,
+    sender: str,
     attendees: Optional[list] = None,
     body: Optional[str] = None
 ) -> dict:
@@ -239,6 +264,7 @@ def book_meeting(
         subject: The subject/title of the meeting
         start_datetime: Start time in YYYY-MM-DDTHH:MM:SS format
         end_datetime: End time in YYYY-MM-DDTHH:MM:SS format
+        sender: The email address or name of the person booking the meeting (from Azure bot webhook)
         attendees: Optional list of attendee email addresses
         body: Optional meeting body/description
     
@@ -261,6 +287,12 @@ def book_meeting(
     user_id = get_user_id_by_email(user_email)
     url = f"{GRAPH_BASE}/users/{user_id}/events"
     
+    # Include sender information in the meeting body
+    sender_info = f"<p><strong>Booked by:</strong> {sender}</p>"
+    meeting_body = sender_info
+    if body:
+        meeting_body += f"<br>{body}"
+    
     event_data = {
         "subject": subject,
         "start": {
@@ -272,14 +304,12 @@ def book_meeting(
             "timeZone": "Eastern Standard Time"
         },
         "isOnlineMeeting": True,
-        "onlineMeetingProvider": "teamsForBusiness"
-    }
-    
-    if body:
-        event_data["body"] = {
+        "onlineMeetingProvider": "teamsForBusiness",
+        "body": {
             "contentType": "HTML",
-            "content": body
+            "content": meeting_body
         }
+    }
     
     if attendees:
         event_data["attendees"] = [
@@ -315,10 +345,11 @@ def book_meeting(
         'duration_minutes': int((end_dt - start_dt).total_seconds() / 60),
         'teams_link': teams_link,
         'has_teams_link': teams_link is not None,
-        'attendee_emails': attendees if attendees else []
+        'attendee_emails': attendees if attendees else [],
+        'sender': sender
     }
     
-    return result
+    return sanitize_unicode(result)
 
 
 if __name__ == "__main__":
