@@ -199,6 +199,34 @@ def get_users_with_name_and_email() -> List[Dict[str, str]]:
         })
     
     return sanitize_unicode(users)
+
+
+def get_user_by_name(name: str) -> Dict[str, str]:
+    """
+    Find a user by their display name.
+    
+    Args:
+        name: The display name to search for (case-insensitive partial match)
+    
+    Returns:
+        Dictionary with 'name' and 'email' keys, or raises ValueError if not found
+    """
+    users = get_users_with_name_and_email()
+    name_lower = name.lower()
+    
+    # Try exact match first
+    for user in users:
+        if user['name'].lower() == name_lower:
+            return user
+    
+    # Try partial match
+    for user in users:
+        if name_lower in user['name'].lower() or user['name'].lower() in name_lower:
+            return user
+    
+    raise ValueError(f"User not found: {name}")
+
+
 @mcp.tool()
 def check_availability(user_email: str, date: str = "") -> dict:
     """
@@ -257,7 +285,7 @@ def book_meeting(
     subject: str,
     start_datetime: str,
     end_datetime: str,
-    sender: str,
+    sender_name: str,
     attendees: List[str] = None,
     body: str = "" 
 ) -> dict:
@@ -269,7 +297,7 @@ def book_meeting(
         subject: The subject/title of the meeting
         start_datetime: Start time in YYYY-MM-DDTHH:MM:SS format
         end_datetime: End time in YYYY-MM-DDTHH:MM:SS format
-        sender: The email address or name of the person booking the meeting (from Azure bot webhook)
+        sender_name: The display name of the person booking the meeting (will be looked up to find their email)
         attendees: Optional list of attendee email addresses
         body: Optional meeting body/description
     
@@ -288,12 +316,17 @@ def book_meeting(
     day_of_week = start_dt.strftime('%A')
     date_formatted = start_dt.strftime('%B %d, %Y')
     
+    # Look up sender's email from their name
+    sender_user = get_user_by_name(sender_name)
+    sender_email = sender_user['email']
+    sender_display_name = sender_user['name']
+    
     token = get_access_token()
     user_id = get_user_id_by_email(user_email)
     url = f"{GRAPH_BASE}/users/{user_id}/events"
     
     # Include sender information in the meeting body
-    sender_info = f"<p><strong>Booked by:</strong> {sender}</p>"
+    sender_info = f"<p><strong>Booked by:</strong> {sender_display_name} ({sender_email})</p>"
     meeting_body = sender_info
     if body:
         meeting_body += f"<br>{body}"
@@ -351,7 +384,8 @@ def book_meeting(
         'teams_link': teams_link,
         'has_teams_link': teams_link is not None,
         'attendee_emails': attendees if attendees else [],
-        'sender': sender
+        'sender_name': sender_display_name,
+        'sender_email': sender_email
     }
     
     return sanitize_unicode(result)
