@@ -167,10 +167,10 @@ def calculate_free_slots(busy_times: list, date: str):
     
     return free_slots
 
-@mcp.tool()
-def get_users_with_name_and_email() -> List[Dict[str, str]]:
+
+def _fetch_users_list() -> List[Dict[str, str]]:
     """
-    Get a list of all users with their display names and email addresses.
+    Internal helper function to fetch users from Microsoft Graph API.
     
     Returns:
         List of dictionaries containing 'name' and 'email' keys for each user
@@ -201,6 +201,17 @@ def get_users_with_name_and_email() -> List[Dict[str, str]]:
     return sanitize_unicode(users)
 
 
+@mcp.tool()
+def get_users_with_name_and_email() -> List[Dict[str, str]]:
+    """
+    Get a list of all users with their display names and email addresses.
+    
+    Returns:
+        List of dictionaries containing 'name' and 'email' keys for each user
+    """
+    return _fetch_users_list()
+
+
 def get_user_by_name(name: str) -> Dict[str, str]:
     """
     Find a user by their display name.
@@ -211,7 +222,7 @@ def get_user_by_name(name: str) -> Dict[str, str]:
     Returns:
         Dictionary with 'name' and 'email' keys, or raises ValueError if not found
     """
-    users = get_users_with_name_and_email()
+    users = _fetch_users_list()
     name_lower = name.lower()
     
     # Try exact match first
