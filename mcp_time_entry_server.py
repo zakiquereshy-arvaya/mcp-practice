@@ -15,7 +15,8 @@ SCOPE = 'https://graph.microsoft.com/.default'
 
 TOKEN_URL = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
-N8N_MCP_ENDPOINT = os.getenv('N8N_MCP_PROCESS_TIME_ENTRY_TOOL')
+
+N8N_TIMEENTRY_WEBHOOK = os.getenv('N8N_TIMEENTRY_WEBHOOK', 'https://investorterminal.app.n8n.cloud/webhook/ef622d89-cd74-439d-b55d-0ddd21d0d16a').strip()
 
 mcp = FastMCP("Time Entry Server")
 
@@ -69,8 +70,8 @@ def get_user_by_name(name: str) -> Dict[str, str]:
 
 @mcp.tool()
 def process_time_entry(userName: str, query: str) -> dict:
-    if not N8N_MCP_ENDPOINT:
-        raise ValueError("N8N_MCP_PROCESS_TIME_ENTRY_TOOL environment variable is not set")
+    if not N8N_TIMEENTRY_WEBHOOK or not N8N_TIMEENTRY_WEBHOOK.startswith('http'):
+        raise ValueError(f"Invalid N8N_TIMEENTRY_WEBHOOK: {N8N_TIMEENTRY_WEBHOOK}. Check N8N_TIMEENTRY_WEBHOOK environment variable.")
     
     validated_user = get_user_by_name(userName)
     validated_user_name = validated_user['name']
@@ -80,7 +81,7 @@ def process_time_entry(userName: str, query: str) -> dict:
         "query": query
     }
     
-    resp = httpx.post(N8N_MCP_ENDPOINT, json=payload, timeout=30.0)
+    resp = httpx.post(N8N_TIMEENTRY_WEBHOOK, json=payload, timeout=30.0)
     resp.raise_for_status()
     
     result = resp.json()
