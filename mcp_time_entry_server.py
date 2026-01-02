@@ -17,6 +17,7 @@ TOKEN_URL = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 N8N_TIMEENTRY_WEBHOOK = os.getenv('N8N_TIMEENTRY_WEBHOOK').strip()
+#Adding for new deploy this comment can be removed later
 
 mcp = FastMCP("Time Entry Server")
 
