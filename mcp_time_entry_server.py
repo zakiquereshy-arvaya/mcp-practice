@@ -16,7 +16,7 @@ SCOPE = 'https://graph.microsoft.com/.default'
 TOKEN_URL = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
-N8N_TIMEENTRY_WEBHOOK = os.getenv('N8N_TIMEENTRY_WEBHOOK', 'https://investorterminal.app.n8n.cloud/webhook/ef622d89-cd74-439d-b55d-0ddd21d0d16a').strip()
+N8N_TIMEENTRY_WEBHOOK = os.getenv('N8N_TIMEENTRY_WEBHOOK').strip()
 
 mcp = FastMCP("Time Entry Server")
 
