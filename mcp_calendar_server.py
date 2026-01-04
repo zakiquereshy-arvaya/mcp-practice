@@ -338,15 +338,17 @@ def book_meeting(
     start_datetime: str,
     end_datetime: str,
     sender_name: str,
+    sender_email: str = None,
     attendees: List[str] = None,
     body: str = "" 
 ) -> dict:
     """
     Book a meeting on a user's calendar.
     
-    IMPORTANT: For best results, first call get_users_with_name_and_email to get the correct email addresses
-    for both the user_email and sender_name, then pass those emails here. This function will attempt to 
-    resolve names to emails if needed.
+    IMPORTANT: 
+    - REQUIRED: sender_email must be provided OR sender_name must exactly match a user from get_users_with_name_and_email
+    - Always call get_users_with_name_and_email first to get the correct email addresses
+    - This function will NOT create meetings with invalid or hallucinated sender information
     
     Args:
         user_email: The email address or display name of the user whose calendar to book on.
@@ -354,13 +356,18 @@ def book_meeting(
         subject: The subject/title of the meeting
         start_datetime: Start time in YYYY-MM-DDTHH:MM:SS format
         end_datetime: End time in YYYY-MM-DDTHH:MM:SS format
-        sender_name: The display name of the person booking the meeting (will be looked up to find their email).
-                     Use the exact name from get_users_with_name_and_email for best results.
+        sender_name: The display name of the person booking the meeting. Must exactly match a user from get_users_with_name_and_email.
+        sender_email: REQUIRED - The email address of the person booking the meeting. 
+                      If not provided, sender_name will be validated against get_users_with_name_and_email.
+                      If provided, it will be validated to ensure it exists in the system.
         attendees: Optional list of attendee email addresses
         body: Optional meeting body/description
     
     Returns:
         Dictionary containing the created meeting details including Teams link
+    
+    Raises:
+        ValueError: If sender_email is not provided and sender_name doesn't match exactly, or if sender_email doesn't exist in system
     """
     try:
         start_dt = datetime.fromisoformat(start_datetime)
@@ -374,38 +381,80 @@ def book_meeting(
     day_of_week = start_dt.strftime('%A')
     date_formatted = start_dt.strftime('%B %d, %Y')
     
-    # Look up sender's email from their name using get_users_with_name_and_email data
+    # Validate sender - CRITICAL: We must have a valid sender_email to prevent calendar pollution
     users = _fetch_users_list()
-    sender_name_normalized = ' '.join(sender_name.lower().strip().split())
     sender_user = None
+    sender_display_name = None
     
-    # Try exact match first (case-insensitive, normalized)
-    for user in users:
-        user_name_normalized = ' '.join(user['name'].lower().strip().split())
-        if user_name_normalized == sender_name_normalized:
-            sender_user = user
-            break
-    
-    # Try partial match if exact match not found
-    if not sender_user:
+    # If sender_email is provided, validate it exists in the system
+    if sender_email:
+        sender_email_lower = sender_email.lower().strip()
+        for user in users:
+            user_email_lower = (user.get('email') or '').lower().strip()
+            if user_email_lower == sender_email_lower:
+                sender_user = user
+                sender_display_name = user['name']
+                # Verify sender_name matches if provided
+                if sender_name:
+                    sender_name_normalized = ' '.join(sender_name.lower().strip().split())
+                    user_name_normalized = ' '.join(user['name'].lower().strip().split())
+                    if sender_name_normalized != user_name_normalized:
+                        raise ValueError(
+                            f"Sender email '{sender_email}' belongs to '{user['name']}', but sender_name '{sender_name}' was provided. "
+                            f"These must match. Please use get_users_with_name_and_email to get the correct sender information."
+                        )
+                break
+        
+        if not sender_user:
+            available_emails = [user.get('email', 'N/A') for user in users[:5] if user.get('email')]
+            raise ValueError(
+                f"Sender email '{sender_email}' not found in the system. "
+                f"Please use get_users_with_name_and_email tool first to get a valid sender email address. "
+                f"Example emails found: {', '.join(available_emails[:3])}"
+            )
+    else:
+        # If sender_email not provided, require exact match on sender_name
+        if not sender_name or sender_name.strip() == "":
+            raise ValueError(
+                "sender_email is REQUIRED. Please provide sender_email parameter. "
+                "Use get_users_with_name_and_email tool first to get the correct sender email address."
+            )
+        
+        sender_name_normalized = ' '.join(sender_name.lower().strip().split())
+        exact_matches = []
+        
+        # Find exact matches only (case-insensitive, normalized)
         for user in users:
             user_name_normalized = ' '.join(user['name'].lower().strip().split())
-            # Check if search name is contained in user name or vice versa
-            if sender_name_normalized in user_name_normalized or user_name_normalized in sender_name_normalized:
-                # Prefer longer matches (more specific)
-                if not sender_user or len(user_name_normalized) > len(sender_user['name']):
-                    sender_user = user
+            if user_name_normalized == sender_name_normalized:
+                exact_matches.append(user)
+        
+        if len(exact_matches) == 0:
+            available_names = [user['name'] for user in users[:10]]
+            raise ValueError(
+                f"Sender '{sender_name}' not found. sender_email is REQUIRED. "
+                f"Please provide sender_email parameter or use get_users_with_name_and_email tool first to get the correct sender email. "
+                f"Available users: {', '.join(available_names)}"
+            )
+        elif len(exact_matches) > 1:
+            # Multiple exact matches (shouldn't happen, but handle it)
+            match_names = [user['name'] for user in exact_matches]
+            raise ValueError(
+                f"Multiple users found matching '{sender_name}': {', '.join(match_names)}. "
+                f"sender_email is REQUIRED to uniquely identify the sender. "
+                f"Please provide sender_email parameter."
+            )
+        else:
+            sender_user = exact_matches[0]
+            sender_email = sender_user['email']
+            sender_display_name = sender_user['name']
     
-    if not sender_user:
-        available_names = [user['name'] for user in users[:5]]  # Show first 5 as examples
+    # Final safety check - sender_email must be set
+    if not sender_email or not sender_display_name:
         raise ValueError(
-            f"Sender '{sender_name}' not found. "
-            f"Please use get_users_with_name_and_email tool first to get the correct sender name and email. "
-            f"Example names found: {', '.join(available_names)}"
+            "CRITICAL: sender_email validation failed. "
+            "Please provide sender_email parameter or ensure sender_name exactly matches a user from get_users_with_name_and_email."
         )
-    
-    sender_email = sender_user['email']
-    sender_display_name = sender_user['name']
     
     # Check if user_email is actually an email or a name
     # If it doesn't contain '@', treat it as a name and look up the email using get_users_with_name_and_email data
