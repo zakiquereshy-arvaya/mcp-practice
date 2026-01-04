@@ -254,9 +254,28 @@ def check_availability(user_email: str, date: str = "") -> dict:
         date = datetime.now().strftime("%Y-%m-%d")
     
     # Check if user_email is actually an email or a name
-    # If it doesn't contain '@', treat it as a name and look up the email
+    # If it doesn't contain '@', treat it as a name and look up the email using get_users_with_name_and_email data
     if '@' not in user_email:
-        target_user = get_user_by_name(user_email)
+        users = _fetch_users_list()
+        name_lower = user_email.lower()
+        target_user = None
+        
+        # Try exact match first
+        for user in users:
+            if user['name'].lower() == name_lower:
+                target_user = user
+                break
+        
+        # Try partial match if exact match not found
+        if not target_user:
+            for user in users:
+                if name_lower in user['name'].lower() or user['name'].lower() in name_lower:
+                    target_user = user
+                    break
+        
+        if not target_user:
+            raise ValueError(f"User not found: {user_email}")
+        
         user_email = target_user['email']
     
     date_obj = datetime.strptime(date, "%Y-%m-%d")
@@ -333,15 +352,52 @@ def book_meeting(
     day_of_week = start_dt.strftime('%A')
     date_formatted = start_dt.strftime('%B %d, %Y')
     
-    # Look up sender's email from their name
-    sender_user = get_user_by_name(sender_name)
+    # Look up sender's email from their name using get_users_with_name_and_email data
+    users = _fetch_users_list()
+    sender_name_lower = sender_name.lower()
+    sender_user = None
+    
+    # Try exact match first
+    for user in users:
+        if user['name'].lower() == sender_name_lower:
+            sender_user = user
+            break
+    
+    # Try partial match if exact match not found
+    if not sender_user:
+        for user in users:
+            if sender_name_lower in user['name'].lower() or user['name'].lower() in sender_name_lower:
+                sender_user = user
+                break
+    
+    if not sender_user:
+        raise ValueError(f"Sender not found: {sender_name}")
+    
     sender_email = sender_user['email']
     sender_display_name = sender_user['name']
     
     # Check if user_email is actually an email or a name
-    # If it doesn't contain '@', treat it as a name and look up the email
+    # If it doesn't contain '@', treat it as a name and look up the email using get_users_with_name_and_email data
     if '@' not in user_email:
-        target_user = get_user_by_name(user_email)
+        name_lower = user_email.lower()
+        target_user = None
+        
+        # Try exact match first
+        for user in users:
+            if user['name'].lower() == name_lower:
+                target_user = user
+                break
+        
+        # Try partial match if exact match not found
+        if not target_user:
+            for user in users:
+                if name_lower in user['name'].lower() or user['name'].lower() in name_lower:
+                    target_user = user
+                    break
+        
+        if not target_user:
+            raise ValueError(f"User not found: {user_email}")
+        
         user_email = target_user['email']
     
     token = get_access_token()
