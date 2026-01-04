@@ -244,7 +244,7 @@ def check_availability(user_email: str, date: str = "") -> dict:
     Check calendar availability for a user on a specific date.
     
     Args:
-        user_email: The email address of the user to check availability for
+        user_email: The email address or display name of the user to check availability for
         date: The date to check in YYYY-MM-DD format. Defaults to today if not provided.
     
     Returns:
@@ -252,6 +252,12 @@ def check_availability(user_email: str, date: str = "") -> dict:
     """
     if not date or date == "":
         date = datetime.now().strftime("%Y-%m-%d")
+    
+    # Check if user_email is actually an email or a name
+    # If it doesn't contain '@', treat it as a name and look up the email
+    if '@' not in user_email:
+        target_user = get_user_by_name(user_email)
+        user_email = target_user['email']
     
     date_obj = datetime.strptime(date, "%Y-%m-%d")
     # Query the full day using UTC format (required by Microsoft Graph API)
