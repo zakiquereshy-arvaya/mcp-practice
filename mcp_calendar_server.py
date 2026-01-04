@@ -332,6 +332,12 @@ def book_meeting(
     sender_email = sender_user['email']
     sender_display_name = sender_user['name']
     
+    # Check if user_email is actually an email or a name
+    # If it doesn't contain '@', treat it as a name and look up the email
+    if '@' not in user_email:
+        target_user = get_user_by_name(user_email)
+        user_email = target_user['email']
+    
     token = get_access_token()
     user_id = get_user_id_by_email(user_email)
     url = f"{GRAPH_BASE}/users/{user_id}/events"
