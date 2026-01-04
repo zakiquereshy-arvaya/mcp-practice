@@ -243,8 +243,12 @@ def check_availability(user_email: str, date: str = "") -> dict:
     """
     Check calendar availability for a user on a specific date.
     
+    IMPORTANT: For best results, first call get_users_with_name_and_email to get the correct email address,
+    then pass that email here. This function will attempt to resolve names to emails if needed.
+    
     Args:
-        user_email: The email address or display name of the user to check availability for
+        user_email: The email address or display name of the user to check availability for.
+                    If a name is provided, it will be matched against users from get_users_with_name_and_email.
         date: The date to check in YYYY-MM-DD format. Defaults to today if not provided.
     
     Returns:
@@ -257,24 +261,36 @@ def check_availability(user_email: str, date: str = "") -> dict:
     # If it doesn't contain '@', treat it as a name and look up the email using get_users_with_name_and_email data
     if '@' not in user_email:
         users = _fetch_users_list()
-        name_lower = user_email.lower()
+        name_lower = user_email.lower().strip()
         target_user = None
         
-        # Try exact match first
+        # Normalize the search name - remove extra spaces
+        search_name = ' '.join(name_lower.split())
+        
+        # Try exact match first (case-insensitive)
         for user in users:
-            if user['name'].lower() == name_lower:
+            user_name_normalized = ' '.join(user['name'].lower().strip().split())
+            if user_name_normalized == search_name:
                 target_user = user
                 break
         
         # Try partial match if exact match not found
         if not target_user:
             for user in users:
-                if name_lower in user['name'].lower() or user['name'].lower() in name_lower:
-                    target_user = user
-                    break
+                user_name_normalized = ' '.join(user['name'].lower().strip().split())
+                # Check if search name is contained in user name or vice versa
+                if search_name in user_name_normalized or user_name_normalized in search_name:
+                    # Prefer longer matches (more specific)
+                    if not target_user or len(user_name_normalized) > len(target_user['name']):
+                        target_user = user
         
         if not target_user:
-            raise ValueError(f"User not found: {user_email}")
+            available_names = [user['name'] for user in users[:5]]  # Show first 5 as examples
+            raise ValueError(
+                f"User '{user_email}' not found. "
+                f"Please use get_users_with_name_and_email tool first to get the correct email address. "
+                f"Example names found: {', '.join(available_names)}"
+            )
         
         user_email = target_user['email']
     
@@ -328,12 +344,18 @@ def book_meeting(
     """
     Book a meeting on a user's calendar.
     
+    IMPORTANT: For best results, first call get_users_with_name_and_email to get the correct email addresses
+    for both the user_email and sender_name, then pass those emails here. This function will attempt to 
+    resolve names to emails if needed.
+    
     Args:
-        user_email: The email address of the user whose calendar to book on
+        user_email: The email address or display name of the user whose calendar to book on.
+                    If a name is provided, it will be matched against users from get_users_with_name_and_email.
         subject: The subject/title of the meeting
         start_datetime: Start time in YYYY-MM-DDTHH:MM:SS format
         end_datetime: End time in YYYY-MM-DDTHH:MM:SS format
-        sender_name: The display name of the person booking the meeting (will be looked up to find their email)
+        sender_name: The display name of the person booking the meeting (will be looked up to find their email).
+                     Use the exact name from get_users_with_name_and_email for best results.
         attendees: Optional list of attendee email addresses
         body: Optional meeting body/description
     
@@ -354,24 +376,33 @@ def book_meeting(
     
     # Look up sender's email from their name using get_users_with_name_and_email data
     users = _fetch_users_list()
-    sender_name_lower = sender_name.lower()
+    sender_name_normalized = ' '.join(sender_name.lower().strip().split())
     sender_user = None
     
-    # Try exact match first
+    # Try exact match first (case-insensitive, normalized)
     for user in users:
-        if user['name'].lower() == sender_name_lower:
+        user_name_normalized = ' '.join(user['name'].lower().strip().split())
+        if user_name_normalized == sender_name_normalized:
             sender_user = user
             break
     
     # Try partial match if exact match not found
     if not sender_user:
         for user in users:
-            if sender_name_lower in user['name'].lower() or user['name'].lower() in sender_name_lower:
-                sender_user = user
-                break
+            user_name_normalized = ' '.join(user['name'].lower().strip().split())
+            # Check if search name is contained in user name or vice versa
+            if sender_name_normalized in user_name_normalized or user_name_normalized in sender_name_normalized:
+                # Prefer longer matches (more specific)
+                if not sender_user or len(user_name_normalized) > len(sender_user['name']):
+                    sender_user = user
     
     if not sender_user:
-        raise ValueError(f"Sender not found: {sender_name}")
+        available_names = [user['name'] for user in users[:5]]  # Show first 5 as examples
+        raise ValueError(
+            f"Sender '{sender_name}' not found. "
+            f"Please use get_users_with_name_and_email tool first to get the correct sender name and email. "
+            f"Example names found: {', '.join(available_names)}"
+        )
     
     sender_email = sender_user['email']
     sender_display_name = sender_user['name']
@@ -379,24 +410,33 @@ def book_meeting(
     # Check if user_email is actually an email or a name
     # If it doesn't contain '@', treat it as a name and look up the email using get_users_with_name_and_email data
     if '@' not in user_email:
-        name_lower = user_email.lower()
+        name_normalized = ' '.join(user_email.lower().strip().split())
         target_user = None
         
-        # Try exact match first
+        # Try exact match first (case-insensitive, normalized)
         for user in users:
-            if user['name'].lower() == name_lower:
+            user_name_normalized = ' '.join(user['name'].lower().strip().split())
+            if user_name_normalized == name_normalized:
                 target_user = user
                 break
         
         # Try partial match if exact match not found
         if not target_user:
             for user in users:
-                if name_lower in user['name'].lower() or user['name'].lower() in name_lower:
-                    target_user = user
-                    break
+                user_name_normalized = ' '.join(user['name'].lower().strip().split())
+                # Check if search name is contained in user name or vice versa
+                if name_normalized in user_name_normalized or user_name_normalized in name_normalized:
+                    # Prefer longer matches (more specific)
+                    if not target_user or len(user_name_normalized) > len(target_user['name']):
+                        target_user = user
         
         if not target_user:
-            raise ValueError(f"User not found: {user_email}")
+            available_names = [user['name'] for user in users[:5]]  # Show first 5 as examples
+            raise ValueError(
+                f"User '{user_email}' not found. "
+                f"Please use get_users_with_name_and_email tool first to get the correct email address. "
+                f"Example names found: {', '.join(available_names)}"
+            )
         
         user_email = target_user['email']
     
