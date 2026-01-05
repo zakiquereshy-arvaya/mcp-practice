@@ -9,6 +9,7 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+azure_deployment = os.getenv('AZURE_OPENAI_DEPLOYMENT')
 
 class CalendarAIHelper:
     """
@@ -42,7 +43,7 @@ class CalendarAIHelper:
         self.client = AzureOpenAI(
             api_key=api_key,
             api_version=api_version,
-            azure_endpoint=azure_endpoint
+            azure_deployment=azure_deployment,
         )
         self.model = model
         self.min_confidence_name = 0.9  # Strict threshold for name matching
