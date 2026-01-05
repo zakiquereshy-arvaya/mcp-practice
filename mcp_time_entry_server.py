@@ -91,23 +91,43 @@ def process_time_entry(userName: str, query: str) -> dict:
     if not N8N_TIMEENTRY_WEBHOOK or not N8N_TIMEENTRY_WEBHOOK.startswith('http'):
         raise ValueError(f"Invalid N8N_TIMEENTRY_WEBHOOK: {N8N_TIMEENTRY_WEBHOOK}. Check N8N_TIMEENTRY_WEBHOOK environment variable.")
     
-    # 1. Validate userName using AI (same as calendar server)
-    if not calendar_ai:
-        raise ValueError(
-            "AI helper not available. Please ensure Azure OpenAI is configured. "
-            "User name validation requires AI."
-        )
-    
+    # 1. Validate userName - check if it's an email or a name
     users = fetch_users_list()
-    validated_user = calendar_ai.match_user_name(userName, users)
     
-    if not validated_user:
-        available_names = [user['name'] for user in users[:5]]  # Show first 5 as examples
-        raise ValueError(
-            f"User '{userName}' not found or ambiguous. "
-            f"Please use get_users_with_name_and_email tool first to get the correct user name. "
-            f"Example names found: {', '.join(available_names)}"
-        )
+    # If userName is an email address, validate it directly
+    if '@' in userName:
+        validated_user = None
+        userName_lower = userName.lower().strip()
+        for user in users:
+            user_email = (user.get('email') or '').lower().strip()
+            if user_email == userName_lower:
+                validated_user = user
+                break
+        
+        if not validated_user:
+            available_emails = [user.get('email', 'N/A') for user in users[:5] if user.get('email')]
+            raise ValueError(
+                f"User email '{userName}' not found in the system. "
+                f"Please use get_users_with_name_and_email tool first to get a valid user email. "
+                f"Example emails found: {', '.join(available_emails[:3])}"
+            )
+    else:
+        # If userName is a name, use AI to match it
+        if not calendar_ai:
+            raise ValueError(
+                "AI helper not available. Please ensure Azure OpenAI is configured. "
+                "User name validation requires AI. Alternatively, provide userName as an email address."
+            )
+        
+        validated_user = calendar_ai.match_user_name(userName, users)
+        
+        if not validated_user:
+            available_names = [user['name'] for user in users[:5]]  # Show first 5 as examples
+            raise ValueError(
+                f"User '{userName}' not found or ambiguous. "
+                f"Please use get_users_with_name_and_email tool first to get the correct user name or email. "
+                f"Example names found: {', '.join(available_names)}"
+            )
     
     validated_user_name = validated_user['name']
     validated_user_email = validated_user['email']
