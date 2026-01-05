@@ -22,11 +22,21 @@ class CalendarAIHelper:
         api_key = os.getenv('AZURE_OPENAI_API_KEY')
         api_version = os.getenv('AZURE_OPENAI_API_VERSION', '2024-02-15-preview')
         azure_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
+        model = os.getenv('AZURE_OPENAI_MODEL')
         
-        if not api_key or not azure_endpoint:
+        # Validate all required environment variables
+        missing_vars = []
+        if not api_key:
+            missing_vars.append('AZURE_OPENAI_API_KEY')
+        if not azure_endpoint:
+            missing_vars.append('AZURE_OPENAI_ENDPOINT')
+        if not model:
+            missing_vars.append('AZURE_OPENAI_MODEL')
+        
+        if missing_vars:
             raise ValueError(
-                "Azure OpenAI credentials not found. Please set AZURE_OPENAI_API_KEY, "
-                "AZURE_OPENAI_ENDPOINT, and optionally AZURE_OPENAI_API_VERSION in .env"
+                f"Azure OpenAI credentials not found. Missing: {', '.join(missing_vars)}. "
+                f"Please set these environment variables in .env"
             )
         
         self.client = AzureOpenAI(
@@ -34,7 +44,7 @@ class CalendarAIHelper:
             api_version=api_version,
             azure_endpoint=azure_endpoint
         )
-        self.model = os.getenv('AZURE_OPENAI_MODEL')
+        self.model = model
         self.min_confidence_name = 0.9  # Strict threshold for name matching
         self.min_confidence_sender = 0.95  # Even stricter for sender validation
     
