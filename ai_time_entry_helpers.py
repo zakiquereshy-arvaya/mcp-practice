@@ -5,6 +5,10 @@ import logging
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 
 class TimeEntryAIHelper:
