@@ -154,11 +154,6 @@ def process_time_entry(userName: str, query: str) -> dict:
     # 4. Build payload with validated and extracted data
     payload = {
         "userName": validated_user_name,
-        "userEmail": validated_user_email,
-        "date": extracted['date'],
-        "client": extracted['client'],
-        "description": extracted['description'],
-        "hours": extracted['hours'],
         "query": query  # Keep original query for reference
     }
     
