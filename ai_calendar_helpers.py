@@ -43,7 +43,7 @@ class CalendarAIHelper:
         self.client = AzureOpenAI(
             api_key=api_key,
             api_version=api_version,
-            azure_deployment=azure_deployment,
+            azure_deployment=azure_deployment
         )
         self.model = model
         self.min_confidence_name = 0.9  # Strict threshold for name matching
