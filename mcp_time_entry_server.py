@@ -6,11 +6,8 @@ from dotenv import load_dotenv
 from typing import List, Dict, Optional, Any
 from openai import AzureOpenAI
 import json
-import logging
 
 load_dotenv()
-
-logger = logging.getLogger(__name__)
 
 # Azure OpenAI configuration
 AZURE_OPENAI_API_KEY = os.getenv('AZURE_OPENAI_API_KEY')
@@ -27,19 +24,8 @@ if AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_MODEL:
             api_version=AZURE_OPENAI_API_VERSION,
             azure_endpoint=AZURE_OPENAI_ENDPOINT
         )
-        logger.info("Azure OpenAI client initialized successfully")
-    except Exception as e:
-        logger.warning(f"Failed to initialize Azure OpenAI client: {e}")
+    except Exception:
         azure_openai_client = None
-else:
-    missing = []
-    if not AZURE_OPENAI_API_KEY:
-        missing.append('AZURE_OPENAI_API_KEY')
-    if not AZURE_OPENAI_ENDPOINT:
-        missing.append('AZURE_OPENAI_ENDPOINT')
-    if not AZURE_OPENAI_MODEL:
-        missing.append('AZURE_OPENAI_MODEL')
-    logger.warning(f"Azure OpenAI not configured. Missing: {', '.join(missing)}")
 
 TENANT_ID = os.getenv('TENANT_ID')
 CLIENT_ID = os.getenv('CLIENT_ID')
@@ -158,11 +144,17 @@ Return ONLY valid JSON, no other text."""
         }
         
     except Exception as e:
-        logger.error(f"AI name matching failed for '{query_name}': {e}")
+        error_msg = str(e)
+        if "DeploymentNotFound" in error_msg or "404" in error_msg:
+            raise ValueError(
+                f"Azure OpenAI deployment '{AZURE_OPENAI_MODEL}' not found. "
+                f"Please check that the deployment exists in your Azure OpenAI resource and that "
+                f"AZURE_OPENAI_MODEL matches the deployment name exactly."
+            )
         raise ValueError(
             f"Failed to match user name '{query_name}'. "
             f"Please use get_users_with_name_and_email tool first to get the correct email address. "
-            f"Error: {str(e)}"
+            f"Error: {error_msg}"
         )
 
 
@@ -270,16 +262,21 @@ Return ONLY valid JSON, no other text."""
         
         extracted["missing_fields"] = missing
         
-        logger.info(f"Extracted time entry fields: date={extracted['date']}, client={extracted['client']}, hours={extracted['hours']}, missing={missing}")
-        
         return extracted
         
     except Exception as e:
-        logger.error(f"AI time entry extraction failed: {e}")
+        error_msg = str(e)
+        if "DeploymentNotFound" in error_msg or "404" in error_msg:
+            raise ValueError(
+                f"Azure OpenAI deployment '{AZURE_OPENAI_MODEL}' not found. "
+                f"Please check that the deployment exists in your Azure OpenAI resource and that "
+                f"AZURE_OPENAI_MODEL matches the deployment name exactly. "
+                f"Current model: {AZURE_OPENAI_MODEL}"
+            )
         raise ValueError(
             f"Failed to extract time entry information from query. "
             f"Please ensure your query includes: date, client/customer name, description, and hours. "
-            f"Error: {str(e)}"
+            f"Error: {error_msg}"
         )
 
 
