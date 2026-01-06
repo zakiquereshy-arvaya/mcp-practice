@@ -1,1 +1,0 @@
-   - FastMCP isn't generating a proper `type` field for `Optional[list]`
